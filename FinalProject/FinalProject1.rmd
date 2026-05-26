@@ -1,0 +1,435 @@
+
+library(tidyverse)
+
+players <- read.csv("data/superliga_data_final.csv")
+
+
+# 2. Definer den korrekte kronologiske rækkefølge for sæsonerne
+# Vi laver en liste over sæsonerne fra 90/91 op til 25/26
+saeson_raekkefoelge <- c(
+  "90/91", "95/96", "00/01", "05/06", "10/11", "15/16", "20/21", "25/26"
+)
+
+# 3. Beregn procentdelen af danske spillere pr. sæson
+resultat <- players %>%
+  # Sørg for at sæsonen følger vores definerede rækkefølge
+  mutate(sæson = factor(sæson, levels = saeson_raekkefoelge)) %>%
+  # Gruppér data efter sæson
+  group_by(sæson) %>%
+  # Beregn det samlede antal spillere og hvor mange der er fra Danmark
+  summarise(
+    Antal_Total = n(),
+    Antal_Danske = sum(nationalitet == "danmark", na.rm = TRUE),
+    Procent_Danske = (Antal_Danske / Antal_Total) * 100
+  ) %>%
+  # Sortér efter den kronologiske rækkefølge vi lavede i 'factor'
+  arrange(sæson)
+
+# Vis resultatet
+print(resultat, n = Inf)
+
+library(tidyr)
+library(ggplot2)
+
+##FC Nordsjælland Procentvis
+
+data <- read.csv("data/superliga_data_final.csv", stringsAsFactors = FALSE)
+
+fcn_kontinent_procent <- data %>%
+  # 1. Filtrer på holdet FCN og de valgte sæsoner
+  filter(hold == "fcn" & sæson %in% saeson_raekkefoelge) %>%
+  
+  # 2. Tæl antallet af spillere for hvert kontinent per sæson
+  count(sæson, kontinent) %>%
+  
+  # 3. Grupper efter sæson for at beregne procenten internt i hver sæson
+  group_by(sæson) %>%
+  mutate(procent = (n / sum(n)) * 100) %>%
+  ungroup() %>%
+  
+  # 4. Gør tabellen læsbar (Sæsoner som rækker, Kontinenter som kolonner)
+  select(sæson, kontinent, procent) %>%
+  pivot_wider(names_from = kontinent, values_from = procent, values_fill = 0) %>%
+  
+  # 5. Sørg for at sæsonerne kommer i den rigtige kronologiske rækkefølge
+  arrange(match(sæson, saeson_raekkefoelge))
+
+# Vis det endelige resultat
+print(fcn_kontinent_procent)
+
+
+##FC Nordsjælland
+
+# 2. Beregn forekomsten (antal spillere) pr. kontinent over sæsonerne
+fcn_kontinent_udvikling <- players %>%
+  # Filtrér for FCN-spillere og de specifikke sæsoner
+  filter(hold == "fcn", sæson %in% saeson_raekkefoelge) %>%
+  # Sørg for at sæsonerne følger din rækkefølge kronologisk
+  mutate(sæson = factor(sæson, levels = saeson_raekkefoelge)) %>%
+  # Gruppér efter sæson og kontinent og tæl antallet
+  group_by(sæson, kontinent) %>%
+  summarise(Antal = n(), .groups = "drop")
+
+# 3. Gør resultatet nemt at læse (Krydstabel)
+# Dette flytter sæsonerne op som kolonner, så du nemt kan sammenligne
+fcn_krydstabel <- fcn_kontinent_udvikling %>%
+  pivot_wider(names_from = sæson, values_from = Antal, values_fill = 0)
+
+# Vis resultatet
+print(fcn_krydstabel)
+
+fcn_data_graf <- players %>%
+  filter(hold == "fcn", sæson %in% saeson_raekkefoelge) %>%
+  mutate(sæson = factor(sæson, levels = saeson_raekkefoelge)) %>%
+  group_by(sæson, kontinent) %>%
+  summarise(Antal = n(), .groups = "drop") %>%
+  # Sørg for at tomme sæsoner også kommer med på grafen
+  tidyr::complete(sæson, kontinent, fill = list(Antal = 0))
+
+
+# GRAF 1: Antal spillere pr. kontinent (Almindelig stablet søjle)
+
+
+
+ggplot(fcn_data_graf, aes(x = sæson, y = Antal, fill = kontinent)) +
+  geom_bar(stat = "identity", position = "stack", width = 0.6) +
+  scale_fill_brewer(palette = "Set2") + # Giver flotte, moderne farver
+  theme_minimal(base_size = 14) +       # Rent og pænt design
+  labs(
+    title = "FC Nordsjælland: Udvikling i spillernes kontinenter",
+    subtitle = "Antal spillere fordelt på sæsoner",
+    x = "Sæson",
+    y = "Antal spillere",
+    fill = "Kontinent"
+  ) +
+  theme(plot.title = element_text(face = "bold"))
+
+# GRAF 1.5
+
+ggplot(
+  fcn_data_graf,
+  aes(
+    x = sæson,
+    y = Antal,
+    fill = factor(
+      kontinent,
+      levels = c("afrika", "asien", "nordamerika", "sydamerika", "europa")
+    )
+  )
+) +
+  geom_bar(stat = "identity", position = "stack", width = 0.6) +
+  scale_fill_brewer(palette = "Set2") +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "FC Nordsjælland: Udvikling i spillernes kontinenter",
+    subtitle = "Antal spillere fordelt på sæsoner",
+    x = "Sæson",
+    y = "Antal spillere",
+    fill = "Kontinent"
+  ) +
+  theme(plot.title = element_text(face = "bold"))
+
+
+# GRAF 2: Procentvis fordeling (100% stablet søjle)
+# Bemærk 'position = "fill"', som omdanner søjlerne til procent
+ggplot(fcn_data_graf, aes(x = sæson, y = Antal, fill = kontinent)) +
+  geom_bar(stat = "identity", position = "fill", width = 0.6) +
+  scale_y_continuous(labels = scales::percent) + # Laver y-aksen om til %
+  scale_fill_brewer(palette = "Set2") +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "FC Nordsjælland: Kontinent-fordeling i %",
+    subtitle = "Procentvis udvikling over tid",
+    x = "Sæson",
+    y = "Andel af spillertrup",
+    fill = "Kontinent"
+  ) +
+  theme(plot.title = element_text(face = "bold"))
+
+# GRAF 2.5
+
+ggplot(
+  fcn_data_graf,
+  aes(
+    x = sæson,
+    y = Antal,
+    fill = factor(
+      kontinent,
+      levels = c("afrika", "asien", "nordamerika", "sydamerika", "europa")
+    )
+  )
+) +
+  geom_bar(stat = "identity", position = "fill", width = 0.6) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_brewer(palette = "Set2") +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "FC Nordsjælland: Kontinent-fordeling i %",
+    subtitle = "Procentvis udvikling over tid",
+    x = "Sæson",
+    y = "Andel af spillertrup",
+    fill = "Kontinent"
+  ) +
+  theme(plot.title = element_text(face = "bold"))
+
+# GRAF 2.75: 
+
+superliga_graf <- superliga_data_final %>%
+  group_by(sæson, kontinent) %>%
+  summarise(Antal = n(), .groups = "drop")
+
+ggplot(
+  superliga_graf,
+  aes(
+    x = sæson,
+    y = Antal,
+    fill = factor(
+      kontinent,
+      levels = c("afrika", "asien", "nordamerika", "sydamerika", "europa")
+    )
+  )
+) +
+  geom_bar(stat = "identity", position = "stack", width = 0.6) +
+  scale_fill_brewer(palette = "Set2") +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Superligaen: Udvikling i spillernes kontinenter",
+    subtitle = "Antal spillere fordelt på sæsoner",
+    x = "Sæson",
+    y = "Antal spillere",
+    fill = "Kontinent"
+  ) +
+  theme(plot.title = element_text(face = "bold"))
+
+# GRAF 3: Linjegraf
+
+fcn_data_linje <- players %>%
+  filter(hold == "fcn", sæson %in% saeson_raekkefoelge) %>%
+  mutate(sæson = factor(sæson, levels = saeson_raekkefoelge)) %>%
+  group_by(sæson, kontinent) %>%
+  summarise(Antal = n(), .groups = "drop") %>%
+  # Sørg for at tomme årstal (0-værdier) også forbindes af linjerne
+  tidyr::complete(sæson, kontinent, fill = list(Antal = 0))
+
+# 2. Lav linjediagrammet
+ggplot(fcn_data_linje, aes(x = sæson, y = Antal, color = kontinent, group = kontinent)) +
+  geom_line(linewidth = 1.2) +        # Tegner linjerne (linewidth styrer tykkelsen)
+  geom_point(size = 3) +              # Sætter tydelige prikker på de valgte sæsoner
+  scale_color_brewer(palette = "Set1") + # Giver skarpe, adskilte farver til linjerne
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Gradvis udvikling af kontinenter i FCN",
+    subtitle = "Antal spillere pr. kontinent over udvalgte sæsoner",
+    x = "Sæson",
+    y = "Antal spillere",
+    color = "Kontinent"
+  ) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank() # Fjerner unødvendige baggrundsstreger
+  )
+
+##FC Midtjylland Procentvis
+
+fcm_kontinent_procent <- data %>%
+  # 1. Filtrer på holdet FCM og de valgte sæsoner
+  filter(hold == "fcm" & sæson %in% saeson_raekkefoelge) %>%
+  
+  # 2. Tæl antallet af spillere for hvert kontinent per sæson
+  count(sæson, kontinent) %>%
+  
+  # 3. Grupper efter sæson for at beregne procenten internt i hver sæson
+  group_by(sæson) %>%
+  mutate(procent = (n / sum(n)) * 100) %>%
+  ungroup() %>%
+  
+  # 4. Gør tabellen læsbar (Sæsoner som rækker, Kontinenter som kolonner)
+  select(sæson, kontinent, procent) %>%
+  pivot_wider(names_from = kontinent, values_from = procent, values_fill = 0) %>%
+  
+  # 5. Sørg for at sæsonerne kommer i den rigtige kronologiske rækkefølge
+  arrange(match(sæson, saeson_raekkefoelge))
+
+# Vis det endelige resultat
+print(fcm_kontinent_procent)
+
+
+##Fc Midtjylland 
+
+# 2. Beregn forekomsten (antal spillere) pr. kontinent over sæsonerne
+fcm_kontinent_udvikling <- players %>%
+  # Filtrér for FCM-spillere og de specifikke sæsoner
+  filter(hold == "fcm", sæson %in% saeson_raekkefoelge) %>%
+  # Sørg for at sæsonerne følger din rækkefølge kronologisk
+  mutate(sæson = factor(sæson, levels = saeson_raekkefoelge)) %>%
+  # Gruppér efter sæson og kontinent og tæl antallet
+  group_by(sæson, kontinent) %>%
+  summarise(Antal = n(), .groups = "drop")
+
+# 3. Gør resultatet nemt at læse (Krydstabel)
+# Dette flytter sæsonerne op som kolonner, så du nemt kan sammenligne
+fcm_krydstabel <- fcm_kontinent_udvikling %>%
+  pivot_wider(names_from = sæson, values_from = Antal, values_fill = 0)
+
+# Vis resultatet
+print(fcm_krydstabel)
+
+fcm_data_graf <- players %>%
+  filter(hold == "fcm", sæson %in% saeson_raekkefoelge) %>%
+  mutate(sæson = factor(sæson, levels = saeson_raekkefoelge)) %>%
+  group_by(sæson, kontinent) %>%
+  summarise(Antal = n(), .groups = "drop") %>%
+  # Sørg for at tomme sæsoner også kommer med på grafen
+  tidyr::complete(sæson, kontinent, fill = list(Antal = 0))
+
+
+# GRAF 1: Antal spillere pr. kontinent (Almindelig stablet søjle)
+ggplot(fcm_data_graf, aes(x = sæson, y = Antal, fill = kontinent)) +
+  geom_bar(stat = "identity", position = "stack", width = 0.6) +
+  scale_fill_brewer(palette = "Set2") + # Giver flotte, moderne farver
+  theme_minimal(base_size = 14) +       # Rent og pænt design
+  labs(
+    title = "FC Midtjylland: Udvikling i spillernes kontinenter",
+    subtitle = "Antal spillere fordelt på sæsoner",
+    x = "Sæson",
+    y = "Antal spillere",
+    fill = "Kontinent"
+  ) +
+  theme(plot.title = element_text(face = "bold"))
+
+
+# GRAF 2: Procentvis fordeling (100% stablet søjle)
+# Bemærk 'position = "fill"', som omdanner søjlerne til procent
+ggplot(fcm_data_graf, aes(x = sæson, y = Antal, fill = kontinent)) +
+  geom_bar(stat = "identity", position = "fill", width = 0.6) +
+  scale_y_continuous(labels = scales::percent) + # Laver y-aksen om til %
+  scale_fill_brewer(palette = "Set2") +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "FC FC Midtjylland: Kontinent-fordeling i %",
+    subtitle = "Procentvis udvikling over tid",
+    x = "Sæson",
+    y = "Andel af spillertrup",
+    fill = "Kontinent"
+  ) +
+  theme(plot.title = element_text(face = "bold"))
+
+# GRAF 2.5:
+
+ggplot(
+  fcm_data_graf,
+  aes(
+    x = sæson,
+    y = Antal,
+    fill = factor(
+      kontinent,
+      levels = c("afrika", "asien", "nordamerika", "sydamerika", "europa", "oceanien")
+    )
+  )
+) +
+  geom_bar(stat = "identity", position = "fill", width = 0.6) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_brewer(palette = "Set2") +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "FC Midtjylland: Kontinent-fordeling i %",
+    subtitle = "Procentvis udvikling over tid",
+    x = "Sæson",
+    y = "Andel af spillertrup",
+    fill = "Kontinent"
+  ) +
+  theme(plot.title = element_text(face = "bold"))
+
+
+# GRAF 3: Linjegraf
+
+fcm_data_linje <- players %>%
+  filter(hold == "fcm", sæson %in% saeson_raekkefoelge) %>%
+  mutate(sæson = factor(sæson, levels = saeson_raekkefoelge)) %>%
+  group_by(sæson, kontinent) %>%
+  summarise(Antal = n(), .groups = "drop") %>%
+  # Sørg for at tomme årstal (0-værdier) også forbindes af linjerne
+  tidyr::complete(sæson, kontinent, fill = list(Antal = 0))
+
+# 2. Lav linjediagrammet
+ggplot(fcm_data_linje, aes(x = sæson, y = Antal, color = kontinent, group = kontinent)) +
+  geom_line(linewidth = 1.2) +        # Tegner linjerne (linewidth styrer tykkelsen)
+  geom_point(size = 3) +              # Sætter tydelige prikker på de valgte sæsoner
+  scale_color_brewer(palette = "Set1") + # Giver skarpe, adskilte farver til linjerne
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Gradvis udvikling af kontinenter i FCM",
+    subtitle = "Antal spillere pr. kontinent over udvalgte sæsoner",
+    x = "Sæson",
+    y = "Antal spillere",
+    color = "Kontinent"
+  ) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank() # Fjerner unødvendige baggrundsstreger
+  )
+
+## Kontinent-fordeling for hele ligaen
+
+kontinent_procent2 <- data %>%
+  # 1. Filtrer på holdet FCM og de valgte sæsoner
+  filter(hold & sæson %in% saeson_raekkefoelge) %>%
+  
+  # 2. Tæl antallet af spillere for hvert kontinent per sæson
+  count(sæson, kontinent) %>%
+  
+  # 3. Grupper efter sæson for at beregne procenten internt i hver sæson
+  group_by(sæson) %>%
+  mutate(procent = (n / sum(n)) * 100) %>%
+  ungroup() %>%
+  
+  # 4. Gør tabellen læsbar (Sæsoner som rækker, Kontinenter som kolonner)
+  select(sæson, kontinent, procent) %>%
+  pivot_wider(names_from = kontinent, values_from = procent, values_fill = 0) %>%
+  
+  # 5. Sørg for at sæsonerne kommer i den rigtige kronologiske rækkefølge
+  arrange(match(sæson, saeson_raekkefoelge))
+
+print(kontinent_procent2)
+
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+# Indlæs data
+data <- read.csv("data/superliga_data_final.csv", stringsAsFactors = FALSE)
+valgte_saesoner <- c("05/06", "10/11", "15/16", "20/21", "25/26")
+
+# Forbered data (samme rettelse af købspris som før)
+superliga_priser <- data %>%
+  mutate(købspris = as.numeric(købspris)) %>%
+  filter(sæson %in% valgte_saesoner) %>%
+  group_by(sæson, kontinent) %>%
+  summarise(gns_pris = mean(købspris, na.rm = TRUE), .groups = 'drop') %>%
+  filter(!is.na(gns_pris) & !is.nan(gns_pris)) %>%
+  mutate(sæson = factor(sæson, levels = valgte_saesoner))
+
+# Generer søjlediagrammet
+mit_sojlediagram <- ggplot(superliga_priser, aes(x = sæson, y = gns_pris, fill = kontinent)) +
+  # geom_col laver søjler. position = "dodge" sætter dem ved siden af hinanden i stedet for oven på hinanden
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  
+  # Formater y-aksen med danske tal-formater
+  scale_y_continuous(labels = scales::label_comma(big.mark = ".", decimal.mark = ",")) +
+  
+  labs(
+    title = "Gennemsnitlig købspris i Superligaen per kontinent",
+    subtitle = "Sammenligning af transfersummer fordelt på sæsoner",
+    x = "Sæson",
+    y = "Gennemsnitlig købspris (EUR)",
+    fill = "Kontinent" # Ændret fra 'color' til 'fill' da søjler fyldes med farve
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank() # Fjerner de lodrette linjer, da søjlerne selv opdeler x-aksen pænt
+  )
+
+# Vis grafen
+print(mit_sojlediagram) 
