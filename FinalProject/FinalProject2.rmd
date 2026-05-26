@@ -1,0 +1,244 @@
+
+library(tidyverse)
+library(readr)
+library(ggplot2)
+library(readr)
+library(gganimate)
+library(forcats)
+
+
+data <- data %>%
+  mutate(
+    type = ifelse(nationalitet == "danmark", "Danish", "Non-Danish"),
+    købspris = as.numeric(gsub(",", "", købspris))
+  ) %>%
+  filter(!is.na(købspris))
+
+summary_data <- data %>%
+  group_by(sæson, type) %>%
+  summarise(
+    avg_price = mean(købspris, na.rm = TRUE),
+    .groups = "drop"
+  )
+summary_data$sæson <- factor(
+  summary_data$sæson,
+  levels = c("90/91","95/96","00/01","05/06","10/11","15/16","20/21","25/26")
+)
+
+ggplot(summary_data, aes(x = sæson, y = avg_price, fill = type)) +
+  geom_col(position = "dodge", width = 0.7) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(
+    title = "Transfer values over time",
+    subtitle = "Danish vs Non-Danish players",
+    x = "Season",
+    y = "Average transfer value (€)",
+    fill = "Player type"
+  ) +
+  theme_minimal()
+
+
+
+
+  data <- data %>%
+    mutate(
+      købspris = as.numeric(gsub(",", "", købspris)),
+      hold = trimws(tolower(hold))
+    ) %>%
+    filter(!is.na(købspris))
+  avg_spend <- data %>%
+    group_by(hold) %>%
+    summarise(
+      avg_price = mean(købspris, na.rm = TRUE),
+      .groups = "drop"
+    )
+  placements <- read_csv("Data - placeringer .csv") %>%
+    mutate(
+      hold = trimws(tolower(hold))
+    )
+  avg_place <- placements %>%
+    group_by(hold) %>%
+    summarise(
+      avg_finish = mean(placering, na.rm = TRUE),
+      .groups = "drop"
+    )
+  final_data <- avg_spend %>%
+    inner_join(avg_place, by = "hold")
+
+  ggplot(final_data, aes(x = avg_price, y = avg_finish, label = hold)) +
+    geom_point(size = 4, color = "#2C7FB8") +
+
+    geom_text(
+      nudge_y = 0.3,
+      size = 3
+    ) +
+
+    scale_y_reverse() +
+
+    labs(
+      title = "Average transfer price vs average league finish",
+      subtitle = "Each point represents a team",
+      x = "Average transfer price (€)",
+      y = "Average league position (1 = best)"
+    ) +
+
+    theme_minimal()
+
+
+
+
+
+
+
+
+  data <- data %>%
+    mutate(
+      hold = trimws(tolower(hold)),
+      nationalitet = trimws(tolower(nationalitet))
+    )
+  foreign_counts <- data %>%
+    filter(nationalitet != "danmark") %>%
+    group_by(hold) %>%
+    summarise(
+      avg_foreign = n() / n_distinct(sæson),
+      .groups = "drop"
+    )
+  placements <- read_csv("Data - placeringer .csv") %>%
+    mutate(
+      hold = trimws(tolower(hold))
+    )
+  avg_place <- placements %>%
+    group_by(hold) %>%
+    summarise(
+      avg_finish = mean(placering, na.rm = TRUE),
+      .groups = "drop"
+    )
+  final_data <- foreign_counts %>%
+    inner_join(avg_place, by = "hold")
+  ggplot(final_data, aes(x = avg_foreign, y = avg_finish, label = hold)) +
+    geom_point(size = 4, color = "#2C7FB8") +
+
+    geom_text(
+      nudge_y = 0.3,
+      size = 3
+    ) +
+
+    scale_y_reverse() +
+
+    labs(
+      title = "Foreign players vs average league finish",
+      subtitle = "Each point represents a team",
+      x = "Average number of foreign players per season",
+      y = "Average league position (1 = best)"
+    ) +
+
+    theme_minimal()
+
+
+
+
+
+
+
+
+
+
+
+
+  data_clean2 <- data %>%
+    mutate(
+      købspris = as.numeric(gsub(",", "", købspris)),
+      hold = trimws(tolower(hold))
+    ) %>%
+    filter(!is.na(købspris))
+
+  avg_spend <- data_clean2 %>%
+    group_by(hold) %>%
+    summarise(
+      avg_price = mean(købspris, na.rm = TRUE),
+      .groups = "drop"
+    )
+  placements <- read_csv("Data - placeringer .csv") %>%
+    mutate(hold = trimws(tolower(hold)))
+  avg_place <- placements %>%
+    group_by(hold) %>%
+    summarise(
+      avg_finish = mean(placering, na.rm = TRUE),
+      .groups = "drop"
+    )
+  final_data_price <- avg_spend %>%
+    inner_join(avg_place, by = "hold")
+
+  View(final_data_price)
+
+  ggplot(final_data_price, aes(x = avg_price, y = avg_finish, label = hold)) +
+    geom_point(size = 4, color = "#2C7FB8") +
+    geom_text(nudge_y = 0.3, size = 3) +
+    scale_y_reverse() +
+    labs(
+      title = "Average transfer price vs average league finish",
+      subtitle = "Each point represents a team",
+      x = "Average transfer price (€)",
+      y = "Average league position (1 = best)"
+    ) +
+    theme_minimal()
+
+
+
+
+
+
+
+
+
+
+  data_clean <- data %>%
+    mutate(
+      hold = trimws(tolower(hold)),
+      nationalitet = trimws(tolower(nationalitet))
+    )
+
+  foreign_counts <- data_clean %>%
+    filter(nationalitet != "danmark") %>%
+    group_by(hold) %>%
+    summarise(
+      avg_foreign = n() / n_distinct(sæson),
+      .groups = "drop"
+    )
+  placements <- read_csv("Data - placeringer .csv") %>%
+    mutate(hold = trimws(tolower(hold)))
+
+  avg_place <- placements %>%
+    group_by(hold) %>%
+    summarise(
+      avg_finish = mean(placering, na.rm = TRUE),
+      .groups = "drop"
+    )
+  final_data_foreign <- foreign_counts %>%
+    inner_join(avg_place, by = "hold")
+  View(final_data_foreign)
+
+  ggplot(final_data_foreign, aes(x = avg_foreign, y = avg_finish, label = hold)) +
+    geom_point(size = 4, color = "#2C7FB8") +
+    geom_text(nudge_y = 0.3, size = 3) +
+    scale_y_reverse() +
+    labs(
+      title = "Foreign players vs average league finish",
+      subtitle = "Each point represents a team",
+      x = "Average number of foreign players per season",
+      y = "Average league position (1 = best)"
+    ) +
+    theme_minimal()
+  ``
+
+
+
+
+
+
+
+
+
+
+
+
