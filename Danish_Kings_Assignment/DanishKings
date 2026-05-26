@@ -1,0 +1,206 @@
+---
+title: "Danish Kings"
+author: "Marius Hedegaard Henningsen, Soroosh Sabri, Malte Volquartzen"
+date: "26-05-2026"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Load the kings
+
+1. Look at the dataset that are you loading and check what its columns are separated by? (hint: open it in plain text editor to see)
+
+List what is the separator: the kings data is comma-separated
+
+2. Create a `kings` object in R with the different functions below and inspect the different outputs.
+-  `read.csv()`
+-  `read_csv()`
+-  `read.csv2()` 
+-  `read_csv2()`
+```{r eval= TRUE}
+
+library(tidyverse)
+
+# FILL IN THE CODE BELOW and review the outputs
+
+kings1 <- read.csv("data/kings.csv")
+
+kings2 <- read_csv("data/kings.csv")
+
+kings3 <- read.csv2("data/kings.csv")
+
+kings4 <- read_csv2("data/kings.csv")
+
+
+
+kings1
+glimpse(kings1)
+class(kings1)
+head(kings1)
+
+kings2
+glimpse(kings2)
+class(kings2)
+head(kings1)
+
+kings3
+glimpse(kings3)
+class(kings3)
+head(kings3)
+
+kings4
+glimpse(kings4)
+class(kings4)
+head(kings4)
+
+```
+Answer: 
+1. Which of these functions is a `tidyverse` function? Read data with it below into a `kings` object
+
+read_csv() and read_csv2() are `tidyverse` functions
+
+2. What is the result of running `class()` on the `kings` object created with a tidyverse function.
+
+you get this result: "spec_tbl_df" "tbl_df"      "tbl"         "data.frame" 
+This means that R reads the data as a tibble
+
+3. How many columns does the object have when created with these different functions?
+
+In the cases of read.csv and read_csv the object creates 11 columns
+In the cases of read.csv2 and read_csv2 the object creates 1 column
+
+4. Show the dataset so that we can see how R interprets each column
+
+We use the command glimpse(kings) which shows us that R reads the columns correctly with chr meaning that the values are read as characters and dbl meaning that the values are read as numbers
+
+```{r eval = TRUE}
+
+# COMPLETE THE BLANKS BELOW WITH YOUR CODE, then turn the 'eval' flag in this chunk to TRUE.
+
+kings <- read_csv("data/kings.csv", na = c("NULL","")) 
+# this is the right function for my dataset
+
+class(kings)
+
+
+glimpse(kings)
+
+
+head(kings)
+
+
+
+```
+
+
+## Calculate the duration of reign for all the kings in your table
+
+Create a new column called  `duration` in the kings dataset, utilizing the `mutate()` function from tidyverse. Check with your group to brainstorm the options.
+
+```{r}
+# OUR CODE
+
+kings <- kings %>% 
+  mutate(Start_year = as.numeric(Start_year), End_year = as.numeric(End_year))
+  
+kings <- kings %>% 
+  mutate(Duration = End_year - Start_year) 
+  
+
+
+top_3 <- sort(kings$Duration, decreasing = TRUE)[1:3]
+
+top_3
+
+
+```
+
+## Calculate the average duration of reign for all rulers
+
+
+```{r}
+# OUR CODE
+
+library(tidyverse)
+
+# Tibble way
+
+avg_reign <- kings %>% 
+  summarize(mean_duration = mean(Duration, na.rm = TRUE))
+
+# Vector way
+
+avg_reign_vector <- mean(kings$Duration, na.rm = TRUE)
+
+print(avg_reign)
+
+
+```
+
+## How many and which kings enjoyed a longer-than-average duration of reign?
+
+```{r}
+# OUR CODE
+
+
+#1 Finds the kings who enjoyed a longer-than-average duration of reign
+long_reigns <- kings %>% 
+  filter(Duration > avg_reign_vector)
+long_reigns
+
+#2 Shows which kings enjoyed a longer-than-average duration of reign
+long_reigns %>% 
+  select(Name, Duration) %>% 
+  arrange(desc(Duration))
+
+# 5. Counts how many kings enjoyed a longer-than-average duration of reign
+long_reigns %>% 
+  count()
+
+```
+
+## How many days did the three longest-ruling monarchs rule? 
+
+```{r}
+# OUR CODE
+
+top_3_monarchs <- kings %>% 
+  arrange(desc(Duration)) %>%   
+  slice(1:3) %>%                
+  mutate(
+    Days_Basic = Duration * 365,
+    # To count transition/leap year we add 0.25 to the 365 days, because every fourth year is a leap year
+    Days_Leap = Duration * 365.25 
+  )
+
+print(top_3_monarchs %>% select(Name, Duration, Days_Leap))
+
+```
+
+
+## Challenge: Plot the kings' duration of reign through time
+
+```{r}
+# OUR CODE
+
+kings <- kings |>
+  mutate(Midyear = Start_year + (End_year - Start_year) / 2)
+
+ggplot(kings, aes(x = Midyear, y = Duration)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "Duration of reign of Danish monarchs through time",
+    x = "Midyear of reign",
+    y = "Duration of reign (years)"
+  ) +
+  theme_bw() +
+  theme(text = element_text(size = 14))
+
+```
+
+
